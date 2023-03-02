@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+	    <meta charset="utf-8">
+		<title>Nick Fox-Gieg - Orbital Line 2</title>
+    	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+   		<link rel="stylesheet" href="./css/main.css">
+		<script src="./js/libraries/threejs/three.min.js"></script>
+		<script src="./js/libraries/latk.min.js"></script>
+		<script src="https://fox-gieg.com/js/libraries/threejs/133/loaders/GLTFLoader.js"></script>
+		<script src="https://fox-gieg.com/js/libraries/threejs/133/loaders/DRACOLoader.js"></script>
+		<script src="https://fox-gieg.com/js/libraries/threejs/133/shaders/CopyShader.js"></script>
+		<script src="https://fox-gieg.com/js/libraries/threejs/133/shaders/LuminosityHighPassShader.js"></script>
+		<script src="https://fox-gieg.com/js/libraries/threejs/133/postprocessing/EffectComposer.js"></script>
+		<script src="https://fox-gieg.com/js/libraries/threejs/133/postprocessing/ShaderPass.js"></script>
+		<script src="https://fox-gieg.com/js/libraries/threejs/133/postprocessing/RenderPass.js"></script>
+		<script src="https://fox-gieg.com/js/libraries/threejs/133/postprocessing/UnrealBloomPass.js"></script>
+		<script src="./js/general-util.js"></script>
+		<script src="./js/threejs-util.js"></script>
+		<script src="./js/threejs-wasd.js"></script>
+		<script src="./js/threejs-mouse.js"></script>
+		<script src="./js/libraries/tonejs/Tone.js"></script>
+	</head>
+
+	<body>
+		<script>
+			"use strict";
+
+		    const audioPlayer = new Tone.Player({
+		        url: "./files/audio.mp3",
+		        loop: true,
+		        loopStart: 0,
+		        loopEnd: 12.335
+		    }).toDestination();
+
+			const audioVolume = new Tone.Volume(1).toDestination();
+
+			let audioAuthorized = false;
+			document.addEventListener("click", function() {
+				if (!audioAuthorized) {
+					audioPlayer.connect(audioVolume).start();
+					Tone.start();
+					let newPosition = counter * latkFpsInterval;
+	        		Tone.Transport.seconds = newPosition;
+					console.log("Audio ready at position " + newPosition + ".");
+					audioAuthorized = true;
+				}
+			});
+
+			// ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+			//const url = "./files/untitled.latk";
+			//const globalScale = new THREE.Vector3(16, 9, -50);
+			//const globalOffset = new THREE.Vector3(-8, -5, -2); 
+
+			const url = "./files/output_003_simplified.latk";
+			const globalScale = new THREE.Vector3(10, 10, 30);
+			const globalOffset = new THREE.Vector3(-10, -15, -50); 
+			// ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+
+			let latk;
+			let latkFps = 12;
+			let latkFpsInterval;
+			let latkFpsDelta = 0;
+			let counter = 0;
+			let bgLayerIndex = 1;
+			let longestLayer = 0;
+
+			const renderer = new THREE.WebGLRenderer({ antialiasing: true, alpha: false });
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setClearColor(0x000000);
+
+			const exposure = 1.2;
+			renderer.toneMapping = THREE.ReinhardToneMapping;
+			renderer.toneMappingExposure = Math.pow(exposure, 4.0);
+
+			renderer.autoClear = false;
+			document.body.appendChild(renderer.domElement);
+
+			const cameraFov = 60;
+			const cameraAspect = window.innerWidth / window.innerHeight;
+			const cameraNear = 0.1;
+			const cameraFar = 100;
+
+			const camera = new THREE.PerspectiveCamera(cameraFov, cameraAspect, cameraNear, cameraFar);
+
+			const clock = new THREE.Clock();
+
+			const scene = new THREE.Scene();
+			const bgLoader = new THREE.TextureLoader();
+			bgLoader.load("./images/bg.jpg" , function(texture) {
+            	scene.background = texture;  
+            });
+
+			const fogColor = 0x000000;
+			const fogDensity = 0.00375;
+			scene.fog = new THREE.FogExp2(fogColor, fogDensity);
+			scene.background = new THREE.Color("#000000");  
+
+			const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+			bloomPass.threshold = 0; //0;
+			bloomPass.strength = 6; //1.5;
+			bloomPass.radius = 0.8; //0.8
+			
+			const renderPass = new THREE.RenderPass(scene, camera);
+
+			const composer = new THREE.EffectComposer(renderer);
+			composer.addPass(renderPass);
+			composer.addPass(bloomPass);
+
+			// Configure and create Draco decoder.
+			const loader = new THREE.GLTFLoader();
+			const dracoLoader = new THREE.DRACOLoader();
+			dracoLoader.setDecoderPath("./js/libraries/threejs/libs/draco/");
+			loader.setDRACOLoader(dracoLoader);
+
+			const mat1 = new THREE.LineBasicMaterial({ color: 0xeeff55 });
+			const mat2 = new THREE.LineBasicMaterial({ color: 0x33ff33 });
+			const mat3 = new THREE.LineBasicMaterial({ color: 0x00aaff });
+
+			let bigPoints = [];
+			let bigGeoBuffer = new THREE.BufferGeometry();
+
+			let bigLine1 = new THREE.LineSegments(bigGeoBuffer, mat1);
+			bigLine1.frustumCulled = false;
+			bigLine1.position.add(new THREE.Vector3(-0.01,0,0));
+
+			let bigLine2 = new THREE.LineSegments(bigGeoBuffer, mat2);
+			bigLine2.frustumCulled = false;
+			bigLine2.position.add(new THREE.Vector3(0,0,-0.1));
+
+			let bigLine3 = new THREE.LineSegments(bigGeoBuffer, mat3);
+			bigLine3.frustumCulled = false;
+			bigLine3.position.add(new THREE.Vector3(0,0.05,0.1));
+
+			scene.add(bigLine1, bigLine2, bigLine3);	
+
+			let firstRun = true;
+
+			const root = new THREE.Object3D();
+
+			const light = new THREE.AmbientLight(0x808080); 
+			scene.add(light);
+
+			function updateLatk() {  
+				if (latk.ready) {
+					if (firstRun) {
+						light.color.setRGB(0.25, 1.0, 1.0);
+				        for (let i=0; i<latk.layers.length; i++) {
+				            if (latk.layers[i].frames.length > longestLayer) longestLayer = i;
+				        }
+
+						for (let layer of latk.layers) {
+							for (let frame of layer.frames) {
+								for (let stroke of frame.strokes) {
+									let newPoints = [];
+									for (let point of stroke.points) {
+										let newPoint = new THREE.Vector3(point.co[0], point.co[1], point.co[2]);
+										newPoint.multiply(globalScale).add(globalOffset);
+										newPoints.push(newPoint);
+									}
+									stroke.points = newPoints;
+								}
+							}
+						}
+
+						firstRun = false;
+					}
+
+					if (bgLayerIndex >= 0) {
+						try {
+							for (let strokeObj of latk.layers[bgLayerIndex].frames[0].strokes) {
+								drawStroke(strokeObj);
+							}
+						} catch (e) { }
+					}
+
+					for (let i=0; i<latk.layers.length; i++) {
+						if (i !== bgLayerIndex) {
+							try {
+								for (let strokeObj of latk.layers[i].frames[counter].strokes) {
+									drawStroke(strokeObj);
+								}
+							} catch (e) { }
+						}
+					}
+
+					latkFpsDelta += clock.getDelta();
+					if (latkFpsDelta > latkFpsInterval) {
+						light.intensity = Math.random() + 1.0;
+						latkFpsDelta = 0;
+						counter++;
+						if (counter > latk.layers[longestLayer].frames.length-1) counter = 0;
+					}
+				}
+			}
+
+			function drawStroke(strokeObj) {
+				for (let i=0; i<strokeObj.points.length-1; i++) {
+					bigPoints.push(strokeObj.points[i]);
+					bigPoints.push(strokeObj.points[i+1]);
+				}
+			}
+
+			function init() {
+				loader.load("./files/bg.glb", function(gltf) {
+					// gltf.animations; // Array<THREE.AnimationClip>
+					// gltf.scene; // THREE.Group
+					// gltf.scenes; // Array<THREE.Group>
+					// gltf.cameras; // Array<THREE.Camera>
+					// gltf.asset; // Object
+			        
+			        scene.add(root);	
+					scene.add(gltf.scene);
+
+			        gltf.scene.parent = root;
+
+					const scaler = 10;
+					root.scale.set(scaler, scaler, scaler);
+					root.position.set(3, 3, -27);
+				});
+
+				latk = Latk.read(url);
+
+				latkFpsInterval = 1.0 / latkFps;
+				console.log(latkFpsInterval);
+
+		        resetCameraPosition();
+				setupWasd();
+				setupMouse();
+
+			    renderer.setAnimationLoop(draw);
+			}
+
+
+			function draw() {
+				bigPoints = [];
+
+				updateLatk();
+
+				//console.log("Total points in frame: " + bigPoints.length);
+				bigGeoBuffer.setFromPoints(bigPoints);
+				
+				updateWasd();
+
+				composer.render(); //scene, camera);
+			}
+
+			init();					
+		</script>
+	</body>
+
+</html>
