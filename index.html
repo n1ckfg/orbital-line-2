@@ -7,7 +7,6 @@
     	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
    		<link rel="stylesheet" href="./css/main.css">
 		<script src="./js/libraries/threejs/three.min.js"></script>
-		<script src="./js/libraries/latk.min.js"></script>
 		<script src="https://fox-gieg.com/js/libraries/threejs/133/loaders/GLTFLoader.js"></script>
 		<script src="https://fox-gieg.com/js/libraries/threejs/133/loaders/DRACOLoader.js"></script>
 		<script src="https://fox-gieg.com/js/libraries/threejs/133/shaders/CopyShader.js"></script>
@@ -155,6 +154,42 @@
 			    gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
 			}`
 
+		    const videoGeometry = new THREE.SphereBufferGeometry(1, 256, 256);
+
+		    const video = document.createElement("video");
+		    video.crossOrigin = "anonymous";
+		    video.setAttribute('crossorigin', 'anonymous');
+		    video.setAttribute("webkit-playsinline", "webkit-playsinline");
+		    video.setAttribute('playsinline', 'playsinline');
+		    video.autoplay = true;
+		    video.loop = true;
+		    video.muted = true;
+		    video.src = "./files/output.mp4";
+		    video.play();
+
+		    const videoTexture = new THREE.VideoTexture(video);
+		    videoTexture.format = THREE.RGBAFormat;
+		    videoTexture.minFilter = THREE.NearestFilter;
+		    videoTexture.magFilter = THREE.LinearFilter;
+		    videoTexture.generateMipmaps = false;
+
+		    const videoMaterial = new THREE.ShaderMaterial({
+		      uniforms: {
+		        tex: {
+		          type: "t",
+		          value: videoTexture
+		        }
+		      },
+		      transparent: false,
+		      vertexShader: vertShader, 
+		      fragmentShader: fragShader 
+		    });
+
+		    const videoMesh = new THREE.Points(videoGeometry, videoMaterial);
+		    const videoScaler = 1.0;
+		    videoMesh.scale.set(videoScaler, videoScaler, videoScaler);
+		    videoMesh.position.set(0, 0, 0);
+
 		    const audioPlayer = new Tone.Player({
 		        url: "./files/audio.mp3",
 		        loop: true,
@@ -163,36 +198,20 @@
 		    }).toDestination();
 
 			const audioVolume = new Tone.Volume(1).toDestination();
+			let counter = 0;
+			const fpsInterval = 1.0 / 12.0;
 
 			let audioAuthorized = false;
 			document.addEventListener("click", function() {
 				if (!audioAuthorized) {
 					audioPlayer.connect(audioVolume).start();
 					Tone.start();
-					let newPosition = counter * latkFpsInterval;
+					let newPosition = counter * fpsInterval;
 	        		Tone.Transport.seconds = newPosition;
 					console.log("Audio ready at position " + newPosition + ".");
 					audioAuthorized = true;
 				}
 			});
-
-			// ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-			//const url = "./files/untitled.latk";
-			//const globalScale = new THREE.Vector3(16, 9, -50);
-			//const globalOffset = new THREE.Vector3(-8, -5, -2); 
-
-			const url = "./files/output_003_simplified.latk";
-			const globalScale = new THREE.Vector3(10, 10, 30);
-			const globalOffset = new THREE.Vector3(-10, -15, -50); 
-			// ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-
-			let latk;
-			let latkFps = 12;
-			let latkFpsInterval;
-			let latkFpsDelta = 0;
-			let counter = 0;
-			let bgLayerIndex = 1;
-			let longestLayer = 0;
 
 			const renderer = new THREE.WebGLRenderer({ antialiasing: true, alpha: false });
 			renderer.setSize(window.innerWidth, window.innerHeight);
@@ -221,6 +240,8 @@
             	scene.background = texture;  
             });
 
+			scene.add(videoMesh);
+
 			const fogColor = 0x000000;
 			const fogDensity = 0.00375;
 			scene.fog = new THREE.FogExp2(fogColor, fogDensity);
@@ -243,93 +264,12 @@
 			dracoLoader.setDecoderPath("./js/libraries/threejs/libs/draco/");
 			loader.setDRACOLoader(dracoLoader);
 
-			const mat1 = new THREE.LineBasicMaterial({ color: 0xeeff55 });
-			const mat2 = new THREE.LineBasicMaterial({ color: 0x33ff33 });
-			const mat3 = new THREE.LineBasicMaterial({ color: 0x00aaff });
-
-			let bigPoints = [];
-			let bigGeoBuffer = new THREE.BufferGeometry();
-
-			let bigLine1 = new THREE.LineSegments(bigGeoBuffer, mat1);
-			bigLine1.frustumCulled = false;
-			bigLine1.position.add(new THREE.Vector3(-0.01,0,0));
-
-			let bigLine2 = new THREE.LineSegments(bigGeoBuffer, mat2);
-			bigLine2.frustumCulled = false;
-			bigLine2.position.add(new THREE.Vector3(0,0,-0.1));
-
-			let bigLine3 = new THREE.LineSegments(bigGeoBuffer, mat3);
-			bigLine3.frustumCulled = false;
-			bigLine3.position.add(new THREE.Vector3(0,0.05,0.1));
-
-			scene.add(bigLine1, bigLine2, bigLine3);	
-
 			let firstRun = true;
 
 			const root = new THREE.Object3D();
 
 			const light = new THREE.AmbientLight(0x808080); 
 			scene.add(light);
-
-			function updateLatk() {  
-				if (latk.ready) {
-					if (firstRun) {
-						light.color.setRGB(0.25, 1.0, 1.0);
-				        for (let i=0; i<latk.layers.length; i++) {
-				            if (latk.layers[i].frames.length > longestLayer) longestLayer = i;
-				        }
-
-						for (let layer of latk.layers) {
-							for (let frame of layer.frames) {
-								for (let stroke of frame.strokes) {
-									let newPoints = [];
-									for (let point of stroke.points) {
-										let newPoint = new THREE.Vector3(point.co[0], point.co[1], point.co[2]);
-										newPoint.multiply(globalScale).add(globalOffset);
-										newPoints.push(newPoint);
-									}
-									stroke.points = newPoints;
-								}
-							}
-						}
-
-						firstRun = false;
-					}
-
-					if (bgLayerIndex >= 0) {
-						try {
-							for (let strokeObj of latk.layers[bgLayerIndex].frames[0].strokes) {
-								drawStroke(strokeObj);
-							}
-						} catch (e) { }
-					}
-
-					for (let i=0; i<latk.layers.length; i++) {
-						if (i !== bgLayerIndex) {
-							try {
-								for (let strokeObj of latk.layers[i].frames[counter].strokes) {
-									drawStroke(strokeObj);
-								}
-							} catch (e) { }
-						}
-					}
-
-					latkFpsDelta += clock.getDelta();
-					if (latkFpsDelta > latkFpsInterval) {
-						light.intensity = Math.random() + 1.0;
-						latkFpsDelta = 0;
-						counter++;
-						if (counter > latk.layers[longestLayer].frames.length-1) counter = 0;
-					}
-				}
-			}
-
-			function drawStroke(strokeObj) {
-				for (let i=0; i<strokeObj.points.length-1; i++) {
-					bigPoints.push(strokeObj.points[i]);
-					bigPoints.push(strokeObj.points[i+1]);
-				}
-			}
 
 			function init() {
 				loader.load("./files/bg.glb", function(gltf) {
@@ -349,11 +289,6 @@
 					root.position.set(3, 3, -27);
 				});
 
-				latk = Latk.read(url);
-
-				latkFpsInterval = 1.0 / latkFps;
-				console.log(latkFpsInterval);
-
 		        resetCameraPosition();
 				setupWasd();
 				setupMouse();
@@ -362,14 +297,7 @@
 			}
 
 
-			function draw() {
-				bigPoints = [];
-
-				updateLatk();
-
-				//console.log("Total points in frame: " + bigPoints.length);
-				bigGeoBuffer.setFromPoints(bigPoints);
-				
+			function draw() {			
 				updateWasd();
 
 				composer.render(); //scene, camera);
