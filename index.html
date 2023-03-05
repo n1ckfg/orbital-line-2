@@ -186,9 +186,9 @@
 		    });
 
 		    const videoMesh = new THREE.Points(videoGeometry, videoMaterial);
-		    const videoScaler = 1.0;
+		    const videoScaler = 30.0;
 		    videoMesh.scale.set(videoScaler, videoScaler, videoScaler);
-		    videoMesh.position.set(0, 0, 0);
+		    videoMesh.position.set(-20, -10, -60);
 
 		    const audioPlayer = new Tone.Player({
 		        url: "./files/audio.mp3",
