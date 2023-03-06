@@ -187,7 +187,7 @@
 
 		    const videoMesh = new THREE.Points(videoGeometry, videoMaterial);
 		    const videoScaler = 30.0;
-		    videoMesh.scale.set(videoScaler, videoScaler, videoScaler);
+		    videoMesh.scale.set(videoScaler, videoScaler, videoScaler*2);
 		    videoMesh.position.set(-20, -10, -60);
 
 		    const audioPlayer = new Tone.Player({
