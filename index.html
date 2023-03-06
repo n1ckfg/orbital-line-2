@@ -196,9 +196,6 @@
 		    });
 
 		    const videoMesh = new THREE.Points(videoGeometry, videoMaterial);
-		    const videoScaler = 30.0;
-		    videoMesh.scale.set(videoScaler, videoScaler, videoScaler*2);
-		    videoMesh.position.set(-20, -10, -60);
 
 		    const audioPlayer = new Tone.Player({
 		        url: "./files/audio.mp3",
@@ -277,7 +274,11 @@
 			let firstRun = true;
 
 			const root = new THREE.Object3D();
-
+      		videoMesh.parent = root;
+      		const videoScaler = 3.0;
+		  	videoMesh.scale.set(videoScaler, videoScaler, videoScaler*2);
+		  	videoMesh.position.set(-1.85, -1.5, -3.5);
+      
 			const light = new THREE.AmbientLight(0x808080); 
 			scene.add(light);
 
@@ -289,14 +290,13 @@
 					// gltf.cameras; // Array<THREE.Camera>
 					// gltf.asset; // Object
 			        
-			        scene.add(root);	
+			    	scene.add(root);	
 					scene.add(gltf.scene);
-
-			        gltf.scene.parent = root;
+			    	gltf.scene.parent = root;
 
 					const scaler = 10;
 					root.scale.set(scaler, scaler, scaler);
-					root.position.set(3, 3, -27);
+					root.position.set(3, 0, -27);
 				});
 
 		        resetCameraPosition();
